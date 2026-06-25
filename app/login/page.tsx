@@ -46,8 +46,22 @@ export default function LoginPage() {
       if (response.success && response.data) {
         setAuthToken(response.data.accessToken);
         setRefreshToken(response.data.refreshToken);
-        toast.success("Đăng nhập thành công!");
-        router.push("/users");
+        
+        // Fetch current user details to check the role
+        const meResponse = await authActions.getMe();
+        if (meResponse.success && meResponse.data) {
+          if (meResponse.data.role !== "ADMIN") {
+            toast.error("Quyền truy cập bị từ chối. Chỉ tài khoản Admin mới có quyền truy cập trang quản trị.");
+            authActions.logout();
+            setLoading(false);
+            return;
+          }
+          toast.success("Đăng nhập thành công!");
+          router.push("/users");
+        } else {
+          toast.error(meResponse.error || "Không thể tải thông tin tài khoản.");
+          authActions.logout();
+        }
       } else {
         toast.error(response.error || "Sai tài khoản hoặc mật khẩu.");
       }

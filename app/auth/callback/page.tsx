@@ -32,8 +32,23 @@ function CallbackHandler() {
           const { accessToken, refreshToken } = response.data.token;
           setAuthToken(accessToken);
           setRefreshToken(refreshToken);
-          toast.success("Đăng nhập bằng Google thành công!");
-          router.push("/users");
+          
+          // Fetch current user details to check the role
+          const meResponse = await authActions.getMe();
+          if (meResponse.success && meResponse.data) {
+            if (meResponse.data.role !== "ADMIN") {
+              toast.error("Quyền truy cập bị từ chối. Chỉ tài khoản Admin mới có quyền truy cập trang quản trị.");
+              authActions.logout();
+              router.push("/login");
+              return;
+            }
+            toast.success("Đăng nhập bằng Google thành công!");
+            router.push("/users");
+          } else {
+            toast.error("Không thể tải thông tin tài khoản.");
+            authActions.logout();
+            router.push("/login");
+          }
         } else {
           toast.error(response.error || "Không thể xác thực tài khoản Google.");
           router.push("/login");

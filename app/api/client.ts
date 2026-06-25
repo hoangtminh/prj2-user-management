@@ -9,7 +9,7 @@ export interface ApiResponse<T> {
 export class ApiError extends Error {
   constructor(
     public statusCode: number,
-    public originalError?: any,
+    public originalError?: unknown,
   ) {
     super(`API Error: ${statusCode}`);
     this.name = "ApiError";
@@ -87,7 +87,7 @@ async function apiRequest<T>(
       headers,
     });
 
-    let data: any;
+    let data: unknown;
     const contentType = response.headers.get("content-type");
     try {
       if (contentType?.includes("application/json")) {
@@ -95,7 +95,7 @@ async function apiRequest<T>(
       } else {
         data = await response.text();
       }
-    } catch (e) {
+    } catch {
       data = null;
     }
 
@@ -185,7 +185,7 @@ export const apiGet = <T>(endpoint: string): Promise<ApiResponse<T>> =>
 
 export const apiPost = <T>(
   endpoint: string,
-  body?: any,
+  body?: unknown,
 ): Promise<ApiResponse<T>> =>
   apiRequest<T>(endpoint, {
     method: "POST",
@@ -194,7 +194,7 @@ export const apiPost = <T>(
 
 export const apiPut = <T>(
   endpoint: string,
-  body?: any,
+  body?: unknown,
 ): Promise<ApiResponse<T>> =>
   apiRequest<T>(endpoint, {
     method: "PUT",
@@ -261,4 +261,15 @@ export const userActions = {
     return apiGet(`/api/users/search?${params.toString()}`);
   },
   getUserProfile: (id: string): Promise<ApiResponse<UserDto>> => apiGet(`/api/users/${id}`),
+  suspendUser: (id: string, suspended: boolean): Promise<ApiResponse<UserDto>> =>
+    apiPut(`/api/users/${id}/suspend?suspended=${suspended}`),
+  deleteUser: (id: string): Promise<ApiResponse<void>> =>
+    apiDelete(`/api/users/${id}`),
+};
+
+export const chatActions = {
+  createChat: (name: string, members: string[], isPublic = false): Promise<ApiResponse<unknown>> =>
+    apiPost("/api/chats", { name, members, isPublic }),
+  sendMessage: (chatId: string, text: string): Promise<ApiResponse<unknown>> =>
+    apiPost(`/api/messages/chat/${chatId}`, { text }),
 };

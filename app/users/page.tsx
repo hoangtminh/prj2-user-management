@@ -7,11 +7,11 @@ import {
   Card,
   CardContent,
   CardHeader,
-  CardTitle,
-  CardDescription
+  CardTitle
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -24,8 +24,8 @@ import {
   getAuthToken,
   authActions,
   userActions,
-  UserDto,
-  PageResponse
+  chatActions,
+  UserDto
 } from "@/app/api/client";
 import {
   Search,
@@ -44,7 +44,11 @@ import {
   Moon,
   Users,
   Trophy,
-  Activity
+  Activity,
+  Trash2,
+  ShieldAlert,
+  Send,
+  MessageSquare
 } from "lucide-react";
 import { useTheme } from "next-themes";
 
@@ -68,12 +72,16 @@ export default function UserManagementPage() {
   const [selectedUser, setSelectedUser] = useState<UserDto | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
 
+  // Direct Message states
+  const [messageText, setMessageText] = useState("");
+  const [sendingMessage, setSendingMessage] = useState(false);
+
   // Statistics summaries
   const [totalStudyTime, setTotalStudyTime] = useState(0);
   const [avgLevel, setAvgLevel] = useState(1);
   const [maxStreak, setMaxStreak] = useState(0);
 
-  // Verify Auth on mount
+  // Verify Auth on mount (Ensuring only ADMIN has access)
   useEffect(() => {
     const checkAuth = async () => {
       const token = getAuthToken();
@@ -86,6 +94,12 @@ export default function UserManagementPage() {
       try {
         const response = await authActions.getMe();
         if (response.success && response.data) {
+          if (response.data.role !== "ADMIN") {
+            toast.error("Quyền truy cập bị từ chối. Chỉ tài khoản Admin mới được truy cập hệ thống.");
+            authActions.logout();
+            router.push("/login");
+            return;
+          }
           setCurrentUser(response.data);
           setAuthLoading(false);
         } else {
@@ -158,7 +172,85 @@ export default function UserManagementPage() {
 
   const viewUserDetails = (user: UserDto) => {
     setSelectedUser(user);
+    setMessageText(""); // Reset message box
     setDetailsOpen(true);
+  };
+
+  // Suspension action
+  const handleSuspendUser = async (userId: string, isCurrentlySuspended: boolean) => {
+    try {
+      const nextSuspendedState = !isCurrentlySuspended;
+      const response = await userActions.suspendUser(userId, nextSuspendedState);
+      if (response.success && response.data) {
+        toast.success(nextSuspendedState ? "Đã tạm ngưng tài khoản thành công." : "Đã kích hoạt lại tài khoản.");
+        
+        // Update local state list
+        setUsers(prev => prev.map(u => u.id === userId ? { ...u, suspended: nextSuspendedState } : u));
+        
+        // Update dialog state
+        setSelectedUser(prev => prev ? { ...prev, suspended: nextSuspendedState } : null);
+      } else {
+        toast.error(response.error || "Không thể cập nhật trạng thái tài khoản.");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Lỗi kết nối máy chủ khi thực hiện tạm ngưng.");
+    }
+  };
+
+  // Deletion action
+  const handleDeleteUser = async (userId: string) => {
+    if (!window.confirm("Bạn có chắc chắn muốn xóa vĩnh viễn tài khoản này? Mọi dữ liệu liên quan sẽ bị xóa sạch.")) {
+      return;
+    }
+
+    try {
+      const response = await userActions.deleteUser(userId);
+      if (response.success) {
+        toast.success("Xóa tài khoản thành công.");
+        setUsers(prev => prev.filter(u => u.id !== userId));
+        setTotalElements(prev => prev - 1);
+        setDetailsOpen(false);
+      } else {
+        toast.error(response.error || "Không thể xóa tài khoản.");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Lỗi kết nối máy chủ khi thực hiện xóa.");
+    }
+  };
+
+  // Sending message action
+  const handleSendMessage = async (email: string) => {
+    if (!messageText.trim()) {
+      toast.error("Vui lòng nhập nội dung tin nhắn.");
+      return;
+    }
+
+    setSendingMessage(true);
+    try {
+      // 1. Create or fetch existing private chat room with target user email
+      const chatResponse = await chatActions.createChat(`Admin Hỗ Trợ`, [email], false);
+      if (chatResponse.success && chatResponse.data) {
+        const chatId = chatResponse.data.id;
+        
+        // 2. Send the message text to the chat
+        const msgResponse = await chatActions.sendMessage(chatId, messageText);
+        if (msgResponse.success) {
+          toast.success("Đã gửi tin nhắn hỗ trợ thành công!");
+          setMessageText("");
+        } else {
+          toast.error(msgResponse.error || "Gửi tin nhắn thất bại.");
+        }
+      } else {
+        toast.error(chatResponse.error || "Không thể mở phòng chat hỗ trợ.");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Lỗi khi kết nối gửi tin nhắn.");
+    } finally {
+      setSendingMessage(false);
+    }
   };
 
   // Formatting utilities
@@ -193,7 +285,7 @@ export default function UserManagementPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground transition-colors duration-300 flex flex-col">
+    <div className="min-h-screen bg-background text-foreground transition-colors duration-300 flex flex-col font-sans">
       {/* Premium Header */}
       <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-md border-b border-border/10 px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -258,11 +350,11 @@ export default function UserManagementPage() {
         <div className="space-y-1">
           <h2 className="text-2xl font-bold tracking-tight">Quản lý người dùng</h2>
           <p className="text-sm text-muted-foreground">
-            Xem hồ sơ, kiểm tra năng suất và theo dõi tiến độ của học sinh Optimind.
+            Xem hồ sơ, kiểm tra năng suất, khóa tài khoản, xóa tài khoản và nhắn tin trực tiếp cho học viên.
           </p>
         </div>
 
-        {/* Dashboard Stat Cards (Tonal Layering - no dark borders, background shifts) */}
+        {/* Dashboard Stat Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card className="border-0 bg-secondary/40 shadow-none rounded-2xl">
             <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
@@ -339,7 +431,9 @@ export default function UserManagementPage() {
               {users.map((user) => (
                 <Card 
                   key={user.id} 
-                  className="border-0 bg-card hover:bg-secondary/20 shadow-sm transition-all duration-300 rounded-2xl overflow-hidden cursor-pointer"
+                  className={`border-0 bg-card hover:bg-secondary/20 shadow-sm transition-all duration-300 rounded-2xl overflow-hidden cursor-pointer ${
+                    user.suspended ? "opacity-75 border-l-4 border-l-destructive" : ""
+                  }`}
                   onClick={() => viewUserDetails(user)}
                 >
                   <CardHeader className="flex flex-row items-center gap-4 pb-3">
@@ -352,11 +446,16 @@ export default function UserManagementPage() {
                     <div className="text-left flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="font-semibold text-sm truncate block">{user.username}</span>
-                        {user.role === "ADMIN" ? (
+                        {user.suspended && (
                           <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xxs font-semibold bg-app-accent-red text-app-accent-red-text">
+                            Bị khóa
+                          </span>
+                        )}
+                        {user.role === "ADMIN" ? (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xxs font-semibold bg-app-accent-blue text-app-accent-blue-text">
                             Admin
                           </span>
-                        ) : (
+                        ) : !user.suspended && (
                           <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xxs font-semibold bg-app-primary-pastel text-app-primary-pastel-text">
                             Học viên
                           </span>
@@ -440,7 +539,7 @@ export default function UserManagementPage() {
 
       {/* Selected User Details Dialog */}
       <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
-        <DialogContent className="border-0 max-w-[480px] rounded-2xl bg-card shadow-lg p-6">
+        <DialogContent className="border-0 max-w-[500px] rounded-2xl bg-card shadow-lg p-6 max-h-[90vh] overflow-y-auto">
           {selectedUser && (
             <>
               <DialogHeader className="flex flex-row items-center gap-4 text-left pb-4 border-b border-border/10">
@@ -453,11 +552,16 @@ export default function UserManagementPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <DialogTitle className="text-lg font-bold truncate">{selectedUser.username}</DialogTitle>
-                    {selectedUser.role === "ADMIN" ? (
+                    {selectedUser.suspended && (
                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xxs font-semibold bg-app-accent-red text-app-accent-red-text">
+                        Đang khóa
+                      </span>
+                    )}
+                    {selectedUser.role === "ADMIN" ? (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xxs font-semibold bg-app-accent-blue text-app-accent-blue-text">
                         Admin
                       </span>
-                    ) : (
+                    ) : !selectedUser.suspended && (
                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xxs font-semibold bg-app-primary-pastel text-app-primary-pastel-text">
                         Học viên
                       </span>
@@ -545,13 +649,75 @@ export default function UserManagementPage() {
                     </span>
                   </div>
                 </div>
+
+                {/* Admin Message To User Form */}
+                {selectedUser.role !== "ADMIN" && (
+                  <div className="space-y-2 border-t border-border/10 pt-4">
+                    <Label className="text-xxs font-semibold text-muted-foreground flex items-center gap-1.5">
+                      <MessageSquare className="h-3.5 w-3.5 text-primary" strokeWidth={1.5} />
+                      Gửi tin nhắn hỗ trợ trực tiếp đến học viên
+                    </Label>
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="Nhập tin nhắn..."
+                        value={messageText}
+                        onChange={(e) => setMessageText(e.target.value)}
+                        className="h-9 text-xs bg-muted border-0 focus-visible:ring-1 focus-visible:ring-primary rounded-xl placeholder:text-muted-foreground/60 flex-1"
+                        disabled={sendingMessage}
+                      />
+                      <Button
+                        size="icon"
+                        className="h-9 w-9 bg-primary text-primary-foreground hover:bg-primary/95 rounded-xl"
+                        onClick={() => handleSendMessage(selectedUser.email)}
+                        disabled={sendingMessage || !messageText.trim()}
+                      >
+                        {sendingMessage ? (
+                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
+                        ) : (
+                          <Send className="h-3.5 w-3.5" />
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Account Actions Section */}
+                {selectedUser.role !== "ADMIN" && (
+                  <div className="space-y-3 border-t border-border/10 pt-4">
+                    <span className="text-xxs font-semibold text-muted-foreground flex items-center gap-1.5">
+                      <ShieldAlert className="h-3.5 w-3.5 text-destructive" strokeWidth={1.5} />
+                      Thao tác quản trị viên
+                    </span>
+                    <div className="flex gap-3">
+                      <Button
+                        variant="outline"
+                        className={`flex-1 rounded-xl text-xs font-semibold h-9 border border-border/40 hover:bg-secondary/40 ${
+                          selectedUser.suspended
+                            ? "text-app-accent-green-text bg-app-accent-green/30"
+                            : "text-app-accent-red-text bg-app-accent-red/30"
+                        }`}
+                        onClick={() => handleSuspendUser(selectedUser.id, !!selectedUser.suspended)}
+                      >
+                        {selectedUser.suspended ? "Kích hoạt tài khoản" : "Tạm ngưng tài khoản"}
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        className="flex-1 rounded-xl text-xs font-semibold h-9 bg-red-600 hover:bg-red-700 text-white"
+                        onClick={() => handleDeleteUser(selectedUser.id)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5 mr-1" />
+                        Xóa vĩnh viễn
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Close controls */}
               <div className="flex justify-end gap-2 border-t border-border/10 pt-4">
                 <Button 
                   onClick={() => setDetailsOpen(false)}
-                  className="bg-primary text-primary-foreground hover:bg-primary/95 rounded-xl text-xs font-semibold px-4 h-9"
+                  className="bg-secondary text-foreground hover:bg-secondary/80 rounded-xl text-xs font-semibold px-4 h-9"
                 >
                   Đóng hồ sơ
                 </Button>
