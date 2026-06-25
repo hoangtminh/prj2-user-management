@@ -25,11 +25,14 @@ export const authOptions: NextAuthOptions = {
   ],
   callbacks: {
     async jwt({ token, account }) {
-      // Exchange Google ID Token with backend API
       if (account?.id_token) {
+        const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || "https://optimind-server.onrender.com";
+        const exchangeUrl = `${apiBaseUrl}/api/auth/google`;
+        console.log(`[NextAuth JWT Callback] Initiating Token Exchange...`);
+        console.log(`[NextAuth JWT Callback] Target Server URL: ${exchangeUrl}`);
+        
         try {
-          const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || "https://optimind-server.onrender.com";
-          const res = await fetch(`${apiBaseUrl}/api/auth/google`, {
+          const res = await fetch(exchangeUrl, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -39,20 +42,26 @@ export const authOptions: NextAuthOptions = {
 
           if (res.ok) {
             const data = await res.json();
+            console.log(`[NextAuth JWT Callback] Token exchange successful! Response keys:`, Object.keys(data));
             if (data?.token) {
               token.accessToken = data.token.accessToken;
               token.refreshToken = data.token.refreshToken;
+              console.log(`[NextAuth JWT Callback] Successfully assigned accessToken and refreshToken to NextAuth token.`);
+            } else {
+              console.warn(`[NextAuth JWT Callback] Response OK but 'token' object is missing in body:`, data);
             }
           } else {
-            console.error("Failed to exchange Google token on Spring Boot backend:", res.status);
+            const errorText = await res.text();
+            console.error(`[NextAuth JWT Callback] Server returned error status: ${res.status}. Body:`, errorText);
           }
         } catch (err) {
-          console.error("Error exchanging token with backend:", err);
+          console.error(`[NextAuth JWT Callback] Failed to fetch server endpoint:`, err);
         }
       }
       return token;
     },
     async session({ session, token }) {
+      console.log(`[NextAuth Session Callback] Mapping token properties to session. AccessToken present:`, !!token.accessToken);
       if (token) {
         session.accessToken = token.accessToken;
         session.refreshToken = token.refreshToken;

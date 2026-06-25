@@ -28,32 +28,38 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (status === "authenticated" && session?.accessToken) {
-      setAuthToken(session.accessToken);
-      if (session.refreshToken) {
-        setRefreshToken(session.refreshToken);
-      }
-      
-      const checkRoleAndRedirect = async () => {
-        setLoading(true);
-        const meResponse = await authActions.getMe();
-        if (meResponse.success && meResponse.data) {
-          if (meResponse.data.role !== "ADMIN") {
-            toast.error("Quyền truy cập bị từ chối. Chỉ tài khoản Admin mới có quyền truy cập trang quản trị.");
-            await authActions.logout();
-            setLoading(false);
-            return;
-          }
-          toast.success("Đăng nhập thành công!");
-          router.push("/users");
-        } else {
-          toast.error("Không thể tải thông tin tài khoản.");
-          await authActions.logout();
+    if (status === "authenticated") {
+      if (session?.accessToken) {
+        setAuthToken(session.accessToken);
+        if (session.refreshToken) {
+          setRefreshToken(session.refreshToken);
         }
-        setLoading(false);
-      };
+        
+        const checkRoleAndRedirect = async () => {
+          setLoading(true);
+          const meResponse = await authActions.getMe();
+          if (meResponse.success && meResponse.data) {
+            if (meResponse.data.role !== "ADMIN") {
+              toast.error("Quyền truy cập bị từ chối. Chỉ tài khoản Admin mới có quyền truy cập trang quản trị.");
+              await authActions.logout();
+              setLoading(false);
+              return;
+            }
+            toast.success("Đăng nhập thành công!");
+            router.push("/users");
+          } else {
+            toast.error("Không thể tải thông tin tài khoản từ server.");
+            await authActions.logout();
+          }
+          setLoading(false);
+        };
 
-      checkRoleAndRedirect();
+        checkRoleAndRedirect();
+      } else {
+        toast.error("Đăng nhập Google thành công nhưng không thể kết nối hoặc xác thực với Server hệ thống.");
+        console.error("NextAuth session is active, but backend accessToken is missing. Session payload:", session);
+        authActions.logout();
+      }
       return;
     }
 
