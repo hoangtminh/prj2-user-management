@@ -102,7 +102,7 @@ async function apiRequest<T>(
     if (response.ok) {
       return {
         success: true,
-        data,
+        data: data as T,
         status: response.status,
       };
     }
@@ -150,8 +150,8 @@ async function apiRequest<T>(
               }
             }
           }
-        } catch (refreshErr) {
-          console.error("Silent token refresh error:", refreshErr);
+        } catch {
+          console.error("Silent token refresh error");
         }
       }
 
@@ -166,7 +166,7 @@ async function apiRequest<T>(
     if (error instanceof ApiError) {
       return {
         success: false,
-        error: error.originalError?.message || error.message || "Request failed",
+        error: (error.originalError as { message?: string })?.message || error.message || "Request failed",
         status: error.statusCode,
       };
     }
@@ -217,6 +217,7 @@ export interface UserDto {
   level: number;
   studyTime: number;
   lastActiveDate?: string;
+  suspended?: boolean;
   createdAt: string;
 }
 
@@ -267,9 +268,16 @@ export const userActions = {
     apiDelete(`/api/users/${id}`),
 };
 
+export interface ChatResponse {
+  id: string;
+  name?: string;
+  isPublic: boolean;
+  createdAt: string;
+}
+
 export const chatActions = {
-  createChat: (name: string, members: string[], isPublic = false): Promise<ApiResponse<unknown>> =>
-    apiPost("/api/chats", { name, members, isPublic }),
+  createChat: (name: string, members: string[], isPublic = false): Promise<ApiResponse<ChatResponse>> =>
+    apiPost<ChatResponse>("/api/chats", { name, members, isPublic }),
   sendMessage: (chatId: string, text: string): Promise<ApiResponse<unknown>> =>
     apiPost(`/api/messages/chat/${chatId}`, { text }),
 };
