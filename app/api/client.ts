@@ -239,13 +239,25 @@ export interface PageResponse<T> {
 export const authActions = {
   login: (email: string, password: string, remember = true): Promise<ApiResponse<TokenResponse>> =>
     apiPost("/api/auth/login", { email, password, remember }),
-  logout: () => {
+  logout: async () => {
     const refreshToken = getRefreshToken();
     if (refreshToken) {
-      apiPost("/api/auth/logout", { refreshToken });
+      try {
+        await apiPost("/api/auth/logout", { refreshToken });
+      } catch (err) {
+        console.error("Logout request failed:", err);
+      }
     }
     setAuthToken(null);
     setRefreshToken(null);
+    if (typeof window !== "undefined") {
+      try {
+        const { signOut } = await import("next-auth/react");
+        await signOut({ redirect: false });
+      } catch (err) {
+        console.error("NextAuth signOut failed:", err);
+      }
+    }
   },
   googleLogin: (code: string, redirectUri: string): Promise<ApiResponse<{ token: TokenResponse }>> =>
     apiPost("/api/auth/oauth2/google", { code, redirectUri }),

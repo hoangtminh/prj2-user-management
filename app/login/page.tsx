@@ -40,8 +40,7 @@ export default function LoginPage() {
         if (meResponse.success && meResponse.data) {
           if (meResponse.data.role !== "ADMIN") {
             toast.error("Quyền truy cập bị từ chối. Chỉ tài khoản Admin mới có quyền truy cập trang quản trị.");
-            authActions.logout();
-            import("next-auth/react").then(({ signOut }) => signOut({ redirect: false }));
+            await authActions.logout();
             setLoading(false);
             return;
           }
@@ -49,8 +48,7 @@ export default function LoginPage() {
           router.push("/users");
         } else {
           toast.error("Không thể tải thông tin tài khoản.");
-          authActions.logout();
-          import("next-auth/react").then(({ signOut }) => signOut({ redirect: false }));
+          await authActions.logout();
         }
         setLoading(false);
       };
@@ -85,7 +83,7 @@ export default function LoginPage() {
         if (meResponse.success && meResponse.data) {
           if (meResponse.data.role !== "ADMIN") {
             toast.error("Quyền truy cập bị từ chối. Chỉ tài khoản Admin mới có quyền truy cập trang quản trị.");
-            authActions.logout();
+            await authActions.logout();
             setLoading(false);
             return;
           }
@@ -93,7 +91,7 @@ export default function LoginPage() {
           router.push("/users");
         } else {
           toast.error(meResponse.error || "Không thể tải thông tin tài khoản.");
-          authActions.logout();
+          await authActions.logout();
         }
       } else {
         toast.error(response.error || "Sai tài khoản hoặc mật khẩu.");

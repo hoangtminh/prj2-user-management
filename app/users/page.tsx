@@ -96,7 +96,7 @@ export default function UserManagementPage() {
         if (response.success && response.data) {
           if (response.data.role !== "ADMIN") {
             toast.error("Quyền truy cập bị từ chối. Chỉ tài khoản Admin mới được truy cập hệ thống.");
-            authActions.logout();
+            await authActions.logout();
             router.push("/login");
             return;
           }
@@ -104,12 +104,12 @@ export default function UserManagementPage() {
           setAuthLoading(false);
         } else {
           toast.error("Phiên đăng nhập hết hạn.");
-          authActions.logout();
+          await authActions.logout();
           router.push("/login");
         }
       } catch (err) {
         console.error(err);
-        authActions.logout();
+        await authActions.logout();
         router.push("/login");
       }
     };
@@ -159,8 +159,8 @@ export default function UserManagementPage() {
     return () => clearTimeout(delayDebounce);
   }, [authLoading, searchQuery, currentPage]);
 
-  const handleLogout = () => {
-    authActions.logout();
+  const handleLogout = async () => {
+    await authActions.logout();
     toast.success("Đã đăng xuất thành công.");
     router.push("/login");
   };
