@@ -60,7 +60,7 @@ export default function LoginPage() {
   };
 
   const handleGoogleLogin = () => {
-    const clientId = "240720508089-cm7lb80tijtm5q4tkht32s28jtd0bbcu.apps.googleusercontent.com";
+    const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "240720508089-cm7lb80tijtm5q4tkht32s28jtd0bbcu.apps.googleusercontent.com";
     const redirectUri = typeof window !== "undefined"
       ? `${window.location.protocol}//${window.location.host}/auth/callback`
       : "http://localhost:3000/auth/callback";

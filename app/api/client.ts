@@ -61,14 +61,7 @@ export const setOnUnauthorized = (callback: () => void) => {
 };
 
 const getBaseUrl = (): string => {
-  if (process.env.NEXT_PUBLIC_API_URL) {
-    return process.env.NEXT_PUBLIC_API_URL;
-  }
-  // Try to use window location host to detect development vs production
-  if (typeof window !== "undefined" && window.location.hostname === "localhost") {
-    return "http://localhost:8080";
-  }
-  return "https://optimind-server.onrender.com";
+  return process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 };
 
 async function apiRequest<T>(
