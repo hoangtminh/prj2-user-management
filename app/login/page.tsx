@@ -17,21 +17,54 @@ import { Label } from "@/components/ui/label";
 import { getAuthToken, setAuthToken, setRefreshToken, authActions } from "@/app/api/client";
 import { Mail, Lock, LogIn, Sun, Moon, GraduationCap } from "lucide-react";
 import { useTheme } from "next-themes";
+import { signIn, useSession } from "next-auth/react";
 
 export default function LoginPage() {
   const router = useRouter();
   const { theme, setTheme } = useTheme();
+  const { data: session, status } = useSession();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    // Redirect if already logged in
+    if (status === "authenticated" && session?.accessToken) {
+      setAuthToken(session.accessToken);
+      if (session.refreshToken) {
+        setRefreshToken(session.refreshToken);
+      }
+      
+      const checkRoleAndRedirect = async () => {
+        setLoading(true);
+        const meResponse = await authActions.getMe();
+        if (meResponse.success && meResponse.data) {
+          if (meResponse.data.role !== "ADMIN") {
+            toast.error("Quyền truy cập bị từ chối. Chỉ tài khoản Admin mới có quyền truy cập trang quản trị.");
+            authActions.logout();
+            import("next-auth/react").then(({ signOut }) => signOut({ redirect: false }));
+            setLoading(false);
+            return;
+          }
+          toast.success("Đăng nhập thành công!");
+          router.push("/users");
+        } else {
+          toast.error("Không thể tải thông tin tài khoản.");
+          authActions.logout();
+          import("next-auth/react").then(({ signOut }) => signOut({ redirect: false }));
+        }
+        setLoading(false);
+      };
+
+      checkRoleAndRedirect();
+      return;
+    }
+
+    // Redirect if already logged in locally
     const token = getAuthToken();
     if (token) {
       router.push("/users");
     }
-  }, [router]);
+  }, [session, status, router]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,17 +107,7 @@ export default function LoginPage() {
   };
 
   const handleGoogleLogin = () => {
-    const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "240720508089-cm7lb80tijtm5q4tkht32s28jtd0bbcu.apps.googleusercontent.com";
-    const redirectUri = typeof window !== "undefined"
-      ? `${window.location.protocol}//${window.location.host}/auth/callback`
-      : "http://localhost:3000/auth/callback";
-    
-    const scope = "email profile openid";
-    const responseType = "code";
-    
-    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=${responseType}&scope=${encodeURIComponent(scope)}`;
-    
-    router.push(authUrl);
+    signIn("google");
   };
 
   return (

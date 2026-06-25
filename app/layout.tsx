@@ -3,6 +3,7 @@ import { Inter, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "next-themes";
+import NextAuthProvider from "@/components/providers/NextAuthProvider";
 
 const inter = Inter({
   variable: "--font-sans",
@@ -32,8 +33,10 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col bg-background text-foreground">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-          {children}
-          <Toaster position="top-right" closeButton />
+          <NextAuthProvider>
+            {children}
+            <Toaster position="top-right" closeButton />
+          </NextAuthProvider>
         </ThemeProvider>
       </body>
     </html>
