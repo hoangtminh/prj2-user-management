@@ -278,6 +278,8 @@ export const userActions = {
     apiPut(`/api/users/${id}/suspend?suspended=${suspended}`),
   deleteUser: (id: string): Promise<ApiResponse<void>> =>
     apiDelete(`/api/users/${id}`),
+  changeUserRole: (id: string, role: string): Promise<ApiResponse<UserDto>> =>
+    apiPut(`/api/users/${id}/role?role=${role}`),
 };
 
 export interface ChatResponse {

@@ -58,7 +58,7 @@ export default function LoginPage() {
       } else {
         toast.error("Đăng nhập Google thành công nhưng không thể kết nối hoặc xác thực với Server hệ thống.");
         console.error("NextAuth session is active, but backend accessToken is missing. Session payload:", session);
-        authActions.logout();
+        // authActions.logout();
       }
       return;
     }

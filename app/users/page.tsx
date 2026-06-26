@@ -220,6 +220,36 @@ export default function UserManagementPage() {
     }
   };
 
+  // Change role action
+  const handleChangeUserRole = async (userId: string, currentRole: string) => {
+    const isCurrentlyAdmin = currentRole === "ADMIN";
+    const nextRole = isCurrentlyAdmin ? "USER" : "ADMIN";
+    const actionText = isCurrentlyAdmin ? "xóa quyền Admin của" : "cấp quyền Admin cho";
+    const confirmMessage = `Bạn có chắc chắn muốn ${actionText} người dùng này không?`;
+
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+
+    try {
+      const response = await userActions.changeUserRole(userId, nextRole);
+      if (response.success && response.data) {
+        toast.success(isCurrentlyAdmin ? "Đã gỡ quyền Admin thành công." : "Đã cấp quyền Admin thành công.");
+        
+        // Update local state list
+        setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: nextRole } : u));
+        
+        // Update dialog state
+        setSelectedUser(prev => prev ? { ...prev, role: nextRole } : null);
+      } else {
+        toast.error(response.error || "Không thể cập nhật quyền hạn tài khoản.");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Lỗi kết nối máy chủ khi thực hiện cập nhật quyền.");
+    }
+  };
+
   // Sending message action
   const handleSendMessage = async (email: string) => {
     if (!messageText.trim()) {
@@ -682,32 +712,48 @@ export default function UserManagementPage() {
                 )}
 
                 {/* Account Actions Section */}
-                {selectedUser.role !== "ADMIN" && (
+                {selectedUser.id !== currentUser?.id && (
                   <div className="space-y-3 border-t border-border/10 pt-4">
                     <span className="text-xxs font-semibold text-muted-foreground flex items-center gap-1.5">
                       <ShieldAlert className="h-3.5 w-3.5 text-destructive" strokeWidth={1.5} />
                       Thao tác quản trị viên
                     </span>
-                    <div className="flex gap-3">
-                      <Button
-                        variant="outline"
-                        className={`flex-1 rounded-xl text-xs font-semibold h-9 border border-border/40 hover:bg-secondary/40 ${
-                          selectedUser.suspended
-                            ? "text-app-accent-green-text bg-app-accent-green/30"
-                            : "text-app-accent-red-text bg-app-accent-red/30"
-                        }`}
-                        onClick={() => handleSuspendUser(selectedUser.id, !!selectedUser.suspended)}
-                      >
-                        {selectedUser.suspended ? "Kích hoạt tài khoản" : "Tạm ngưng tài khoản"}
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        className="flex-1 rounded-xl text-xs font-semibold h-9 bg-red-600 hover:bg-red-700 text-white"
-                        onClick={() => handleDeleteUser(selectedUser.id)}
-                      >
-                        <Trash2 className="h-3.5 w-3.5 mr-1" />
-                        Xóa vĩnh viễn
-                      </Button>
+                    <div className="flex flex-col gap-3">
+                      <div className="flex gap-3">
+                        <Button
+                          variant="outline"
+                          className="flex-1 rounded-xl text-xs font-semibold h-9 border border-border/40 hover:bg-secondary/40 text-primary bg-primary/10"
+                          onClick={() => handleChangeUserRole(selectedUser.id, selectedUser.role)}
+                        >
+                          <Shield className="h-3.5 w-3.5 mr-1" />
+                          {selectedUser.role === "ADMIN" ? "Gỡ quyền Admin" : "Cấp quyền Admin"}
+                        </Button>
+                      </div>
+
+                      {/* Only allow suspending and deleting non-admin users */}
+                      {selectedUser.role !== "ADMIN" && (
+                        <div className="flex gap-3">
+                          <Button
+                            variant="outline"
+                            className={`flex-1 rounded-xl text-xs font-semibold h-9 border border-border/40 hover:bg-secondary/40 ${
+                              selectedUser.suspended
+                                ? "text-app-accent-green-text bg-app-accent-green/30"
+                                : "text-app-accent-red-text bg-app-accent-red/30"
+                            }`}
+                            onClick={() => handleSuspendUser(selectedUser.id, !!selectedUser.suspended)}
+                          >
+                            {selectedUser.suspended ? "Kích hoạt tài khoản" : "Tạm ngưng tài khoản"}
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            className="flex-1 rounded-xl text-xs font-semibold h-9 bg-red-600 hover:bg-red-700 text-white"
+                            onClick={() => handleDeleteUser(selectedUser.id)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5 mr-1" />
+                            Xóa vĩnh viễn
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
